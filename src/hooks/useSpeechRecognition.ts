@@ -65,21 +65,29 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
           const threshold = ambientLevel + 15; // 15 units above ambient
           const isSpeaking = average > threshold;
           
+          console.log(`Volume: ${average.toFixed(2)}, Threshold: ${threshold.toFixed(2)}, Speaking: ${isSpeaking}, Transcript: "${transcript.trim()}"`);
+          
           if (isSpeaking && transcript.trim()) {
             lastSpeechTimeRef.current = Date.now();
             
             // Clear existing silence timer
             if (silenceTimerRef.current) {
               clearTimeout(silenceTimerRef.current);
+              console.log('Cleared existing silence timer');
             }
-            
-            // Set new silence timer
-            silenceTimerRef.current = setTimeout(() => {
-              if (recognitionRef.current && isListening && transcript.trim()) {
-                setHasFinished(true);
-                recognitionRef.current.stop();
-              }
-            }, 2000);
+          } else if (!isSpeaking && transcript.trim() && Date.now() - lastSpeechTimeRef.current > 1000) {
+            // Start silence timer if we have transcript and no speech for 1 second
+            if (!silenceTimerRef.current) {
+              console.log('Starting silence timer...');
+              silenceTimerRef.current = setTimeout(() => {
+                console.log('Silence detected - stopping recognition');
+                if (recognitionRef.current && isListening && transcript.trim()) {
+                  setHasFinished(true);
+                  recognitionRef.current.stop();
+                }
+                silenceTimerRef.current = null;
+              }, 1500); // 1.5 seconds of silence after detecting no speech
+            }
           }
         }
         
@@ -93,7 +101,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
         if (volumeHistoryRef.current.length > 0) {
           const avgAmbient = volumeHistoryRef.current.reduce((sum, val) => sum + val, 0) / volumeHistoryRef.current.length;
           setAmbientLevel(avgAmbient);
-          console.log(`Ambient noise level calibrated: ${avgAmbient.toFixed(2)}`);
+          console.log(`Ambient noise level calibrated: ${avgAmbient.toFixed(2)}, Threshold will be: ${(avgAmbient + 15).toFixed(2)}`);
         }
         setIsCalibrating(false);
       }, 3000);
@@ -161,6 +169,12 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
 
       const fullTranscript = finalTranscript + interimTranscript;
       setTranscript(fullTranscript);
+      
+      // Update last speech time when we get actual speech recognition results
+      if (fullTranscript.trim()) {
+        lastSpeechTimeRef.current = Date.now();
+        console.log(`Speech recognized: "${fullTranscript.trim()}", updating last speech time`);
+      }
     };
 
     recognition.onerror = (event) => {

@@ -31,6 +31,8 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
   const volumeHistoryRef = useRef<number[]>([]);
   const calibrationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const volumeMonitorRef = useRef<number | null>(null);
+  const transcriptRef = useRef('');
+  const hasFinishedRef = useRef(false);
   const isVoiceActiveRef = useRef(false);
   const aboveCountRef = useRef(0);
   const belowCountRef = useRef(0);
@@ -116,6 +118,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
               silenceTimerRef.current = setTimeout(() => {
                 if (recognitionRef.current && isListening && transcript.trim()) {
                   setHasFinished(true);
+                  hasFinishedRef.current = true;
                   recognitionRef.current.stop();
                 }
                 silenceTimerRef.current = null;
@@ -127,6 +130,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
           if (!isVoiceActiveRef.current && transcript.trim() && Date.now() - lastSpeechTimeRef.current > MIN_SILENCE_MS * 2) {
             if (recognitionRef.current && isListening) {
               setHasFinished(true);
+              hasFinishedRef.current = true;
               recognitionRef.current.stop();
             }
           }
@@ -215,11 +219,12 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
 
       const fullTranscript = finalTranscript + interimTranscript;
       setTranscript(fullTranscript);
+      transcriptRef.current = fullTranscript;
       
       // Update last speech time when we get actual speech recognition results
       if (fullTranscript.trim()) {
         lastSpeechTimeRef.current = Date.now();
-        console.log(`Speech recognized: "${fullTranscript.trim()}", updating last speech time`);
+        // console.debug(`Speech recognized: "${fullTranscript.trim()}"`);
       }
     };
 
@@ -236,6 +241,12 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
+      }
+
+      // Safety net: if we still have transcript and not marked finished, finish now
+      if (transcriptRef.current.trim() && !hasFinishedRef.current) {
+        setHasFinished(true);
+        hasFinishedRef.current = true;
       }
     };
 
@@ -255,8 +266,10 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
       setTranscript('');
+      transcriptRef.current = '';
       setError(null);
       setHasFinished(false);
+      hasFinishedRef.current = false;
       lastSpeechTimeRef.current = 0;
       
       // Initialize audio monitoring for volume-based silence detection
@@ -269,6 +282,7 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
   const stopListening = useCallback(() => {
     if (recognitionRef.current && isListening) {
       setHasFinished(true);
+      hasFinishedRef.current = true;
       recognitionRef.current.stop();
       stopAudioMonitoring();
       

@@ -1,0 +1,80 @@
+import { Check, ChevronDown, Zap } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Badge } from '@/components/ui/badge';
+import { type AIModel } from '@/services/openRouterService';
+
+interface ModelSelectorProps {
+  selectedModel: string;
+  availableModels: AIModel[];
+  onModelChange: (model: string) => void;
+  hasApiKey: boolean;
+}
+
+export const ModelSelector = ({ selectedModel, availableModels, onModelChange, hasApiKey }: ModelSelectorProps) => {
+  const currentModel = availableModels.find(model => model.id === selectedModel);
+
+  if (!hasApiKey) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Zap className="w-4 h-4" />
+        <span>Demo Mode - Add API key for model selection</span>
+      </div>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="justify-between gap-2 min-w-[200px]">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4" />
+            <span className="truncate">{currentModel?.name || 'Select Model'}</span>
+          </div>
+          <ChevronDown className="w-4 h-4 opacity-50" />
+        </Button>
+      </DropdownMenuTrigger>
+      
+      <DropdownMenuContent align="end" className="w-80">
+        <DropdownMenuLabel>AI Models</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        
+        {availableModels.map((model) => (
+          <DropdownMenuItem
+            key={model.id}
+            onClick={() => onModelChange(model.id)}
+            className="flex items-start gap-3 p-3 cursor-pointer"
+          >
+            <div className="flex items-center justify-center w-5 h-5 mt-0.5">
+              {selectedModel === model.id && <Check className="w-4 h-4" />}
+            </div>
+            
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="font-medium">{model.name}</span>
+                <Badge variant="secondary" className="text-xs">
+                  {model.pricing.prompt}/1M tokens
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {model.description}
+              </p>
+            </div>
+          </DropdownMenuItem>
+        ))}
+        
+        <DropdownMenuSeparator />
+        <div className="p-2 text-xs text-muted-foreground">
+          Pricing shown per 1M input tokens
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+};

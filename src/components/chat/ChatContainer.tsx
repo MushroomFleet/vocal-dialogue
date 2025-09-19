@@ -11,8 +11,12 @@ export const ChatContainer = () => {
     messages,
     isGenerating,
     streamingContent,
+    selectedModel,
+    availableModels,
+    hasApiKey,
     sendMessage,
     clearConversation,
+    setSelectedModel,
     error: aiError
   } = useConversationAI();
 
@@ -39,6 +43,10 @@ export const ChatContainer = () => {
       <ChatHeader 
         onClearChat={clearConversation}
         isSupported={isSupported}
+        selectedModel={selectedModel}
+        availableModels={availableModels}
+        onModelChange={setSelectedModel}
+        hasApiKey={hasApiKey}
       />
 
       <main className="flex-1 overflow-hidden relative">

@@ -1,7 +1,16 @@
-// Placeholder OpenRouter service - will be enhanced when API key is available
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
+}
+
+export interface AIModel {
+  id: string;
+  name: string;
+  description: string;
+  pricing: {
+    prompt: string;
+    completion: string;
+  };
 }
 
 class OpenRouterService {
@@ -9,14 +18,41 @@ class OpenRouterService {
   private baseURL = 'https://openrouter.ai/api/v1';
 
   constructor() {
-    // In a real implementation, this would come from environment variables
     this.apiKey = import.meta.env.VITE_OPENROUTER_API_KEY || null;
+  }
+
+  get hasApiKey(): boolean {
+    return !!this.apiKey;
+  }
+
+  getPopularModels(): AIModel[] {
+    return [
+      {
+        id: 'openai/gpt-4o',
+        name: 'GPT-4o',
+        description: 'Latest GPT-4 with vision capabilities',
+        pricing: { prompt: '$5.00', completion: '$15.00' }
+      },
+      {
+        id: 'anthropic/claude-3.5-sonnet',
+        name: 'Claude 3.5 Sonnet',
+        description: 'Advanced reasoning and analysis',
+        pricing: { prompt: '$3.00', completion: '$15.00' }
+      },
+      {
+        id: 'openai/gpt-3.5-turbo',
+        name: 'GPT-3.5 Turbo',
+        description: 'Fast and cost-effective',
+        pricing: { prompt: '$0.50', completion: '$1.50' }
+      }
+    ];
   }
 
   async generateStreamingResponse(
     messages: ChatMessage[],
     onToken: (token: string) => void,
-    model = 'openai/gpt-3.5-turbo'
+    onError?: (error: string) => void,
+    model = 'openai/gpt-4o'
   ): Promise<void> {
     // Demo mode - simulate streaming response
     if (!this.apiKey) {
@@ -31,16 +67,29 @@ class OpenRouterService {
           'Authorization': `Bearer ${this.apiKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': window.location.origin,
+          'X-Title': 'Careless-Convo',
         },
         body: JSON.stringify({
           model,
           messages,
           stream: true,
+          temperature: 0.7,
+          max_tokens: 1000,
         }),
       });
 
       if (!response.ok) {
-        throw new Error(`OpenRouter API error: ${response.status}`);
+        const errorText = await response.text();
+        let errorMessage = `API Error (${response.status})`;
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error?.message || errorMessage;
+        } catch {
+          // Use default error message
+        }
+        
+        throw new Error(errorMessage);
       }
 
       const reader = response.body?.getReader();
@@ -78,8 +127,16 @@ class OpenRouterService {
         }
       }
     } catch (error) {
-      console.error('Streaming error:', error);
-      // Fallback to demo mode
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate response';
+      console.error('OpenRouter API error:', errorMessage);
+      onError?.(errorMessage);
+      
+      // Don't fallback to demo mode if we have an API key but got an error
+      if (this.hasApiKey) {
+        throw error;
+      }
+      
+      // Only fallback to demo mode if no API key
       await this.simulateStreamingResponse(messages, onToken);
     }
   }
@@ -88,12 +145,11 @@ class OpenRouterService {
     messages: ChatMessage[],
     onToken: (token: string) => void
   ): Promise<void> {
-    const lastMessage = messages[messages.length - 1];
     const demoResponses = [
-      "I understand you're speaking to me! This is a demo of Careless-Convo, your voice-driven AI companion. I can hear your speech and respond naturally through text-to-speech.",
-      "That's an interesting point you've made. I'm currently running in demo mode, but once you connect an OpenRouter API key, I'll be powered by advanced language models for more sophisticated conversations.",
-      "I noticed you're testing the voice features. The speech recognition is working great! Soon you'll be able to have seamless voice conversations with AI models through the OpenRouter integration.",
-      "Thanks for trying out Careless-Convo! This application demonstrates the future of voice-driven AI interactions. Feel free to speak naturally - I'm listening and ready to respond."
+      "I understand you're speaking to me! This is a demo of Careless-Convo, your voice-driven AI companion. To unlock real AI conversations, add your OpenRouter API key as VITE_OPENROUTER_API_KEY in your environment.",
+      "That's an interesting point you've made. I'm currently running in demo mode - connect your OpenRouter API key to chat with GPT-4, Claude, and other advanced models.",
+      "I noticed you're testing the voice features. The speech recognition is working great! Add an OpenRouter API key to enable real AI conversations with voice input and response.",
+      "Thanks for trying out Careless-Convo! Add your OpenRouter API key to unlock the full conversational AI experience with your choice of models."
     ];
 
     const response = demoResponses[Math.floor(Math.random() * demoResponses.length)];

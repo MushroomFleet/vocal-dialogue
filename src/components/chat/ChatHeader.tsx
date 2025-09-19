@@ -1,13 +1,26 @@
 import { Button } from '@/components/ui/button';
 import { Trash2, MessageSquare, Settings } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ModelSelector } from './ModelSelector';
+import { type AIModel } from '@/services/openRouterService';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
   isSupported: boolean;
+  selectedModel: string;
+  availableModels: AIModel[];
+  onModelChange: (model: string) => void;
+  hasApiKey: boolean;
 }
 
-export const ChatHeader = ({ onClearChat, isSupported }: ChatHeaderProps) => {
+export const ChatHeader = ({ 
+  onClearChat, 
+  isSupported, 
+  selectedModel, 
+  availableModels, 
+  onModelChange, 
+  hasApiKey 
+}: ChatHeaderProps) => {
   return (
     <header className="p-4 border-b bg-card/80 backdrop-blur-sm">
       <div className="flex items-center justify-between">
@@ -36,7 +49,14 @@ export const ChatHeader = ({ onClearChat, isSupported }: ChatHeaderProps) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          <ModelSelector
+            selectedModel={selectedModel}
+            availableModels={availableModels}
+            onModelChange={onModelChange}
+            hasApiKey={hasApiKey}
+          />
+          
           <Button
             variant="ghost"
             size="sm"
@@ -44,14 +64,6 @@ export const ChatHeader = ({ onClearChat, isSupported }: ChatHeaderProps) => {
             className="text-muted-foreground hover:text-foreground"
           >
             <Trash2 className="w-4 h-4" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <Settings className="w-4 h-4" />
           </Button>
         </div>
       </div>

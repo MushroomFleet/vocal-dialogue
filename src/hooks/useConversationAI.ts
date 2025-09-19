@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { openRouterService } from '../services/openRouterService';
+import { openRouterService, type AIModel } from '../services/openRouterService';
 
 export interface Message {
   id: string;
@@ -13,8 +13,12 @@ interface ConversationAIHook {
   messages: Message[];
   isGenerating: boolean;
   streamingContent: string;
+  selectedModel: string;
+  availableModels: AIModel[];
+  hasApiKey: boolean;
   sendMessage: (content: string) => Promise<void>;
   clearConversation: () => void;
+  setSelectedModel: (model: string) => void;
   error: string | null;
 }
 
@@ -22,7 +26,11 @@ export const useConversationAI = (): ConversationAIHook => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState('');
+  const [selectedModel, setSelectedModel] = useState('openai/gpt-4o');
   const [error, setError] = useState<string | null>(null);
+
+  const availableModels = openRouterService.getPopularModels();
+  const hasApiKey = openRouterService.hasApiKey;
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isGenerating) return;
@@ -52,7 +60,11 @@ export const useConversationAI = (): ConversationAIHook => {
         (token: string) => {
           accumulatedContent += token;
           setStreamingContent(accumulatedContent);
-        }
+        },
+        (errorMessage: string) => {
+          setError(errorMessage);
+        },
+        selectedModel
       );
 
       // Add the complete AI response
@@ -83,8 +95,12 @@ export const useConversationAI = (): ConversationAIHook => {
     messages,
     isGenerating,
     streamingContent,
+    selectedModel,
+    availableModels,
+    hasApiKey,
     sendMessage,
     clearConversation,
+    setSelectedModel,
     error
   };
 };

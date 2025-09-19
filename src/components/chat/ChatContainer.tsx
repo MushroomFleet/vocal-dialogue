@@ -63,7 +63,7 @@ export const ChatContainer = () => {
 
     const chatText = messages
       .map(message => {
-        const prefix = message.role === 'user' ? 'H:' : 'assistant:';
+        const prefix = message.role === 'user' ? 'Human:' : 'assistant:';
         return `${prefix} ${message.content}`;
       })
       .join('\n\n');

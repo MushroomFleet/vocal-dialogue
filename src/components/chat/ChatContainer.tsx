@@ -1,14 +1,14 @@
 import { useConversationAI } from '@/hooks/useConversationAI';
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition';
+import { useTextToSpeech } from '@/hooks/useTextToSpeech';
 import { MessageList } from './MessageList';
 import { VoiceControls } from './VoiceControls';
 import { TranscriptionDisplay } from './TranscriptionDisplay';
 import { ChatHeader } from './ChatHeader';
-import { ApiKeySettings } from './ApiKeySettings';
 import { useEffect, useState } from 'react';
 
 export const ChatContainer = () => {
-  const [isApiKeySettingsOpen, setIsApiKeySettingsOpen] = useState(false);
+  const { speak, stop: stopTTS, isSpeaking: isTTSSpeaking } = useTextToSpeech();
   
   const {
     messages,
@@ -43,6 +43,21 @@ export const ChatContainer = () => {
     }
   }, [hasFinished, transcript, sendMessage, resetTranscript]);
 
+  // Stop TTS when user starts speaking
+  useEffect(() => {
+    if (isListening && isTTSSpeaking) {
+      stopTTS();
+    }
+  }, [isListening, isTTSSpeaking, stopTTS]);
+
+  // Speak AI responses
+  useEffect(() => {
+    const latestMessage = messages[messages.length - 1];
+    if (latestMessage && latestMessage.role === 'assistant' && !isGenerating && !latestMessage.isStreaming) {
+      speak(latestMessage.content);
+    }
+  }, [messages, isGenerating, speak]);
+
   return (
     <div className="flex flex-col h-screen bg-gradient-subtle">
       <ChatHeader 
@@ -52,7 +67,6 @@ export const ChatContainer = () => {
         availableModels={availableModels}
         onModelChange={setSelectedModel}
         hasApiKey={hasApiKey}
-        onOpenApiKeySettings={() => setIsApiKeySettingsOpen(true)}
         isListening={isListening}
         onStartListening={startListening}
         onStopListening={stopListening}
@@ -82,12 +96,6 @@ export const ChatContainer = () => {
           isSupported={isSupported}
         />
       </footer>
-
-      <ApiKeySettings
-        open={isApiKeySettingsOpen}
-        onOpenChange={setIsApiKeySettingsOpen}
-        onApiKeyUpdate={refreshApiKeyStatus}
-      />
     </div>
   );
 };

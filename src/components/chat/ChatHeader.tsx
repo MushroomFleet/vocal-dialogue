@@ -1,9 +1,12 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Mic, MicOff, Settings, Square, Loader2 } from 'lucide-react';
+import { Trash2, Mic, MicOff, Settings, Square, Loader2, Volume2 } from 'lucide-react';
 import { ModelSelector } from './ModelSelector';
 import { AIModel } from '@/services/openRouterService';
 import { cn } from '@/lib/utils';
+import { useState } from 'react';
+import { ApiKeySettings } from './ApiKeySettings';
+import { TTSSettings } from './TTSSettings';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -12,7 +15,6 @@ interface ChatHeaderProps {
   availableModels: AIModel[];
   onModelChange: (model: string) => void;
   hasApiKey: boolean;
-  onOpenApiKeySettings: () => void;
   isListening: boolean;
   onStartListening: () => void;
   onStopListening: () => void;
@@ -26,12 +28,14 @@ export const ChatHeader = ({
   availableModels, 
   onModelChange, 
   hasApiKey,
-  onOpenApiKeySettings,
   isListening,
   onStartListening,
   onStopListening,
   isProcessing
 }: ChatHeaderProps) => {
+  const [isApiKeySettingsOpen, setIsApiKeySettingsOpen] = useState(false);
+  const [isTTSSettingsOpen, setIsTTSSettingsOpen] = useState(false);
+  
   const handleToggleListening = () => {
     if (isListening) {
       onStopListening();
@@ -96,19 +100,29 @@ export const ChatHeader = ({
             availableModels={availableModels}
             onModelChange={onModelChange}
             hasApiKey={hasApiKey}
-            onOpenApiKeySettings={onOpenApiKeySettings}
+            onOpenApiKeySettings={() => setIsApiKeySettingsOpen(true)}
           />
           
-          {hasApiKey && (
-            <Button 
-              onClick={onOpenApiKeySettings}
-              variant="ghost" 
-              size="sm"
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          )}
+          {/* Settings Dropdown Menu */}
+          <Button 
+            onClick={() => setIsTTSSettingsOpen(true)}
+            variant="ghost" 
+            size="sm"
+            className="text-muted-foreground hover:text-foreground"
+            title="Voice Settings"
+          >
+            <Volume2 className="h-4 w-4" />
+          </Button>
+          
+          <Button 
+            onClick={() => setIsApiKeySettingsOpen(true)}
+            variant="ghost" 
+            size="sm"
+            className="text-muted-foreground hover:text-foreground"
+            title="API Settings"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
           
           <Button 
             onClick={onClearChat} 
@@ -120,6 +134,17 @@ export const ChatHeader = ({
           </Button>
         </div>
       </div>
+
+      <ApiKeySettings
+        open={isApiKeySettingsOpen}
+        onOpenChange={setIsApiKeySettingsOpen}
+        onApiKeyUpdate={() => window.location.reload()}
+      />
+
+      <TTSSettings
+        open={isTTSSettingsOpen}
+        onOpenChange={setIsTTSSettingsOpen}
+      />
     </header>
   );
 };

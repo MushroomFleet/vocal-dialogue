@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import { ApiKeySettings } from './ApiKeySettings';
 import { TTSSettings } from './TTSSettings';
+import { ThemeToggle } from '../ThemeToggle';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -108,6 +109,8 @@ export const ChatHeader = ({
           />
           
           {/* Settings Dropdown Menu */}
+          <ThemeToggle />
+          
           <Button 
             onClick={() => setIsTTSSettingsOpen(true)}
             variant="ghost" 

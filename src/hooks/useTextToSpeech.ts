@@ -54,6 +54,7 @@ interface TextToSpeechHook {
   settings: TTSSettings;
   updateSettings: (newSettings: Partial<TTSSettings>) => void;
   loadElevenLabsVoices: () => Promise<void>;
+  lastError: string | null;
 }
 
 const DEFAULT_SETTINGS: TTSSettings = {
@@ -73,6 +74,7 @@ export const useTextToSpeech = (): TextToSpeechHook => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [elevenLabsVoices, setElevenLabsVoices] = useState<ElevenLabsVoice[]>(POPULAR_ELEVENLABS_VOICES);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [settings, setSettings] = useState<TTSSettings>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -169,6 +171,9 @@ export const useTextToSpeech = (): TextToSpeechHook => {
   const speak = useCallback(async (text: string) => {
     if (!settings.enabled || !text.trim()) return;
 
+    // Clear any previous errors
+    setLastError(null);
+
     // Stop any current speech
     stop();
 
@@ -204,7 +209,10 @@ export const useTextToSpeech = (): TextToSpeechHook => {
         setIsSpeaking(false);
       }
     } else if (settings.provider === 'elevenlabs') {
-      if (!settings.elevenLabsApiKey || !settings.elevenLabsVoiceId) return;
+      if (!settings.elevenLabsApiKey || !settings.elevenLabsVoiceId) {
+        console.warn('ElevenLabs: Missing API key or voice ID');
+        return;
+      }
       
       try {
         setIsSpeaking(true);
@@ -239,7 +247,8 @@ export const useTextToSpeech = (): TextToSpeechHook => {
             URL.revokeObjectURL(audioUrl);
           };
           
-          audio.onerror = () => {
+          audio.onerror = (e) => {
+            console.error('Audio playback error:', e);
             setIsSpeaking(false);
             URL.revokeObjectURL(audioUrl);
           };
@@ -247,11 +256,31 @@ export const useTextToSpeech = (): TextToSpeechHook => {
           audioRef.current = audio;
           await audio.play();
         } else {
-          throw new Error(`ElevenLabs API error: ${response.status}`);
+          const errorData = await response.json().catch(() => ({}));
+          
+          if (response.status === 401) {
+            const missingPermission = errorData?.detail?.message?.includes('text_to_speech') 
+              ? 'text_to_speech' 
+              : 'API access';
+            throw new Error(`API key missing ${missingPermission} permission. Please check your ElevenLabs API key permissions.`);
+          } else if (response.status === 422) {
+            throw new Error('Invalid voice ID or request parameters');
+          } else {
+            throw new Error(`ElevenLabs API error: ${response.status} - ${errorData?.detail?.message || 'Unknown error'}`);
+          }
         }
       } catch (error) {
         console.error('ElevenLabs TTS Error:', error);
         setIsSpeaking(false);
+        
+        // Show user-friendly error message
+        if (error instanceof Error && error.message.includes('permission')) {
+          setLastError(error.message);
+        } else if (error instanceof Error) {
+          setLastError(`Speech synthesis failed: ${error.message}`);
+        } else {
+          setLastError('An unknown error occurred during speech synthesis');
+        }
       }
     }
   }, [settings, voices, stop, isSupported]);
@@ -265,6 +294,7 @@ export const useTextToSpeech = (): TextToSpeechHook => {
     elevenLabsVoices,
     settings,
     updateSettings,
-    loadElevenLabsVoices
+    loadElevenLabsVoices,
+    lastError
   };
 };

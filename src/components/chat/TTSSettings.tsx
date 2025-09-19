@@ -25,7 +25,8 @@ export const TTSSettings = ({ open, onOpenChange }: TTSSettingsProps) => {
     speak, 
     stop, 
     isSpeaking,
-    loadElevenLabsVoices
+    loadElevenLabsVoices,
+    lastError
   } = useTextToSpeech();
   
   const { toast } = useToast();
@@ -72,6 +73,17 @@ export const TTSSettings = ({ open, onOpenChange }: TTSSettingsProps) => {
       speak(testText);
     }
   };
+
+  // Show error toast when lastError changes
+  useEffect(() => {
+    if (lastError) {
+      toast({
+        title: "Speech Error",
+        description: lastError,
+        variant: "destructive"
+      });
+    }
+  }, [lastError, toast]);
 
   if (!isSupported) {
     return (
@@ -182,7 +194,7 @@ export const TTSSettings = ({ open, onOpenChange }: TTSSettingsProps) => {
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Popular voices are always available. For custom voices, get an API key with 'voices_read' permission from{' '}
+                    Popular voices are always available. For custom voices, get an API key with 'text_to_speech' permission from{' '}
                     <a 
                       href="https://elevenlabs.io/app/speech-synthesis" 
                       target="_blank" 

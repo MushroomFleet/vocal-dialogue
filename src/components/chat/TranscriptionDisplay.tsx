@@ -6,12 +6,16 @@ interface TranscriptionDisplayProps {
   transcript: string;
   isListening: boolean;
   error?: string | null;
+  isCalibrating?: boolean;
+  ambientLevel?: number;
 }
 
 export const TranscriptionDisplay = ({
   transcript,
   isListening,
-  error
+  error,
+  isCalibrating,
+  ambientLevel
 }: TranscriptionDisplayProps) => {
   if (error) {
     return (
@@ -24,9 +28,22 @@ export const TranscriptionDisplay = ({
     );
   }
 
-  if (!isListening && !transcript) {
+  if (!isListening && !transcript && !isCalibrating) {
     return null;
   }
+
+  const getStatusText = () => {
+    if (isCalibrating) {
+      return "Calibrating ambient noise level...";
+    }
+    if (isListening && !transcript) {
+      return `Listening... (Ambient: ${ambientLevel?.toFixed(1) || '0.0'})`;
+    }
+    if (isListening) {
+      return "Listening...";
+    }
+    return "Speech captured";
+  };
 
   return (
     <div className="fixed bottom-32 left-4 right-4 z-10">
@@ -39,14 +56,14 @@ export const TranscriptionDisplay = ({
         <div className="flex items-center gap-2 mb-2">
           <div className={cn(
             "w-2 h-2 rounded-full transition-colors",
-            isListening ? "bg-voice-active animate-pulse" : "bg-muted-foreground"
+            isListening || isCalibrating ? "bg-voice-active animate-pulse" : "bg-muted-foreground"
           )} />
           <Mic className={cn(
             "w-4 h-4 transition-colors",
-            isListening ? "text-voice-active" : "text-muted-foreground"
+            isListening || isCalibrating ? "text-voice-active" : "text-muted-foreground"
           )} />
           <span className="text-sm font-medium">
-            {isListening ? "Listening..." : "Speech captured"}
+            {getStatusText()}
           </span>
         </div>
         

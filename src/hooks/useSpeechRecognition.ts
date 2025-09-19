@@ -9,6 +9,8 @@ interface SpeechRecognitionHook {
   resetTranscript: () => void;
   error: string | null;
   hasFinished: boolean;
+  ambientLevel: number;
+  isCalibrating: boolean;
 }
 
 export const useSpeechRecognition = (): SpeechRecognitionHook => {
@@ -16,11 +18,115 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasFinished, setHasFinished] = useState(false);
+  const [ambientLevel, setAmbientLevel] = useState(0);
+  const [isCalibrating, setIsCalibrating] = useState(false);
+  
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSpeechTimeRef = useRef<number>(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const microphoneRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const volumeHistoryRef = useRef<number[]>([]);
+  const calibrationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const volumeMonitorRef = useRef<number | null>(null);
 
   const isSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+
+  // Audio volume monitoring and ambient noise detection
+  const initializeAudioMonitoring = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      analyserRef.current = audioContextRef.current.createAnalyser();
+      microphoneRef.current = audioContextRef.current.createMediaStreamSource(stream);
+      
+      analyserRef.current.fftSize = 256;
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      
+      microphoneRef.current.connect(analyserRef.current);
+      
+      // Start calibration period (3 seconds)
+      setIsCalibrating(true);
+      volumeHistoryRef.current = [];
+      
+      const monitorVolume = () => {
+        if (!analyserRef.current) return;
+        
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
+        
+        if (isCalibrating) {
+          volumeHistoryRef.current.push(average);
+        } else {
+          // Check if current volume is significantly above ambient level
+          const threshold = ambientLevel + 15; // 15 units above ambient
+          const isSpeaking = average > threshold;
+          
+          if (isSpeaking && transcript.trim()) {
+            lastSpeechTimeRef.current = Date.now();
+            
+            // Clear existing silence timer
+            if (silenceTimerRef.current) {
+              clearTimeout(silenceTimerRef.current);
+            }
+            
+            // Set new silence timer
+            silenceTimerRef.current = setTimeout(() => {
+              if (recognitionRef.current && isListening && transcript.trim()) {
+                setHasFinished(true);
+                recognitionRef.current.stop();
+              }
+            }, 2000);
+          }
+        }
+        
+        volumeMonitorRef.current = requestAnimationFrame(monitorVolume);
+      };
+      
+      monitorVolume();
+      
+      // Complete calibration after 3 seconds
+      calibrationTimerRef.current = setTimeout(() => {
+        if (volumeHistoryRef.current.length > 0) {
+          const avgAmbient = volumeHistoryRef.current.reduce((sum, val) => sum + val, 0) / volumeHistoryRef.current.length;
+          setAmbientLevel(avgAmbient);
+          console.log(`Ambient noise level calibrated: ${avgAmbient.toFixed(2)}`);
+        }
+        setIsCalibrating(false);
+      }, 3000);
+      
+    } catch (err) {
+      console.error('Failed to initialize audio monitoring:', err);
+      setError('Microphone access denied');
+    }
+  }, [ambientLevel, isCalibrating, isListening, transcript]);
+
+  const stopAudioMonitoring = useCallback(() => {
+    if (volumeMonitorRef.current) {
+      cancelAnimationFrame(volumeMonitorRef.current);
+      volumeMonitorRef.current = null;
+    }
+    
+    if (calibrationTimerRef.current) {
+      clearTimeout(calibrationTimerRef.current);
+      calibrationTimerRef.current = null;
+    }
+    
+    if (microphoneRef.current) {
+      microphoneRef.current.disconnect();
+      microphoneRef.current = null;
+    }
+    
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    
+    setIsCalibrating(false);
+  }, []);
 
   useEffect(() => {
     if (!isSupported) {
@@ -55,24 +161,6 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
 
       const fullTranscript = finalTranscript + interimTranscript;
       setTranscript(fullTranscript);
-      
-      // Update last speech time and reset silence timer
-      if (fullTranscript.trim()) {
-        lastSpeechTimeRef.current = Date.now();
-        
-        // Clear existing silence timer
-        if (silenceTimerRef.current) {
-          clearTimeout(silenceTimerRef.current);
-        }
-        
-        // Set new silence timer (2 seconds of silence triggers stop)
-        silenceTimerRef.current = setTimeout(() => {
-          if (recognitionRef.current && isListening && fullTranscript.trim()) {
-            setHasFinished(true);
-            recognitionRef.current.stop();
-          }
-        }, 2000);
-      }
     };
 
     recognition.onerror = (event) => {
@@ -82,6 +170,8 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
 
     recognition.onend = () => {
       setIsListening(false);
+      stopAudioMonitoring();
+      
       // Clear any remaining silence timer
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
@@ -98,8 +188,9 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
       }
+      stopAudioMonitoring();
     };
-  }, [isSupported]);
+  }, [isSupported, stopAudioMonitoring]);
 
   const startListening = useCallback(() => {
     if (recognitionRef.current && !isListening) {
@@ -107,20 +198,26 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
       setError(null);
       setHasFinished(false);
       lastSpeechTimeRef.current = 0;
+      
+      // Initialize audio monitoring for volume-based silence detection
+      initializeAudioMonitoring();
+      
       recognitionRef.current.start();
     }
-  }, [isListening]);
+  }, [isListening, initializeAudioMonitoring]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current && isListening) {
       setHasFinished(true);
       recognitionRef.current.stop();
+      stopAudioMonitoring();
+      
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
       }
     }
-  }, [isListening]);
+  }, [isListening, stopAudioMonitoring]);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
@@ -135,7 +232,9 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     stopListening,
     resetTranscript,
     error,
-    hasFinished
+    hasFinished,
+    ambientLevel,
+    isCalibrating
   };
 };
 
@@ -144,5 +243,7 @@ declare global {
   interface Window {
     SpeechRecognition: typeof SpeechRecognition;
     webkitSpeechRecognition: typeof SpeechRecognition;
+    AudioContext: typeof AudioContext;
+    webkitAudioContext: typeof AudioContext;
   }
 }

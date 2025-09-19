@@ -32,7 +32,9 @@ export const ChatContainer = () => {
     stopListening,
     resetTranscript,
     hasFinished,
-    error: speechError
+    error: speechError,
+    ambientLevel,
+    isCalibrating
   } = useSpeechRecognition();
 
   // Auto-send transcript when speech finishes with silence detection
@@ -108,6 +110,8 @@ export const ChatContainer = () => {
           transcript={transcript}
           isListening={isListening}
           error={speechError || aiError}
+          isCalibrating={isCalibrating}
+          ambientLevel={ambientLevel}
         />
       </main>
 

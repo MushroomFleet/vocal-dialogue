@@ -4,9 +4,12 @@ import { MessageList } from './MessageList';
 import { VoiceControls } from './VoiceControls';
 import { TranscriptionDisplay } from './TranscriptionDisplay';
 import { ChatHeader } from './ChatHeader';
-import { useEffect } from 'react';
+import { ApiKeySettings } from './ApiKeySettings';
+import { useEffect, useState } from 'react';
 
 export const ChatContainer = () => {
+  const [isApiKeySettingsOpen, setIsApiKeySettingsOpen] = useState(false);
+  
   const {
     messages,
     isGenerating,
@@ -17,6 +20,7 @@ export const ChatContainer = () => {
     sendMessage,
     clearConversation,
     setSelectedModel,
+    refreshApiKeyStatus,
     error: aiError
   } = useConversationAI();
 
@@ -47,6 +51,7 @@ export const ChatContainer = () => {
         availableModels={availableModels}
         onModelChange={setSelectedModel}
         hasApiKey={hasApiKey}
+        onOpenApiKeySettings={() => setIsApiKeySettingsOpen(true)}
       />
 
       <main className="flex-1 overflow-hidden relative">
@@ -72,6 +77,12 @@ export const ChatContainer = () => {
           isSupported={isSupported}
         />
       </footer>
+
+      <ApiKeySettings
+        open={isApiKeySettingsOpen}
+        onOpenChange={setIsApiKeySettingsOpen}
+        onApiKeyUpdate={refreshApiKeyStatus}
+      />
     </div>
   );
 };

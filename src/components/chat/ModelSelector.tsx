@@ -16,16 +16,27 @@ interface ModelSelectorProps {
   availableModels: AIModel[];
   onModelChange: (model: string) => void;
   hasApiKey: boolean;
+  onOpenApiKeySettings: () => void;
 }
 
-export const ModelSelector = ({ selectedModel, availableModels, onModelChange, hasApiKey }: ModelSelectorProps) => {
+export const ModelSelector = ({ selectedModel, availableModels, onModelChange, hasApiKey, onOpenApiKeySettings }: ModelSelectorProps) => {
   const currentModel = availableModels.find(model => model.id === selectedModel);
 
   if (!hasApiKey) {
     return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Zap className="w-4 h-4" />
-        <span>Demo Mode - Add API key for model selection</span>
+      <div className="flex items-center gap-2">
+        <Badge variant="secondary" className="text-xs">
+          Demo Mode
+        </Badge>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={onOpenApiKeySettings}
+          className="text-primary hover:text-primary-foreground"
+        >
+          <Zap className="h-4 w-4 mr-2" />
+          Add API Key
+        </Button>
       </div>
     );
   }

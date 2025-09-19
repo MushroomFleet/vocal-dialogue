@@ -11,6 +11,7 @@ interface ChatHeaderProps {
   availableModels: AIModel[];
   onModelChange: (model: string) => void;
   hasApiKey: boolean;
+  onOpenApiKeySettings: () => void;
 }
 
 export const ChatHeader = ({ 
@@ -19,7 +20,8 @@ export const ChatHeader = ({
   selectedModel, 
   availableModels, 
   onModelChange, 
-  hasApiKey 
+  hasApiKey,
+  onOpenApiKeySettings
 }: ChatHeaderProps) => {
   return (
     <header className="p-4 border-b bg-card/80 backdrop-blur-sm">
@@ -55,7 +57,19 @@ export const ChatHeader = ({
             availableModels={availableModels}
             onModelChange={onModelChange}
             hasApiKey={hasApiKey}
+            onOpenApiKeySettings={onOpenApiKeySettings}
           />
+          
+          {hasApiKey && (
+            <Button 
+              onClick={onOpenApiKeySettings}
+              variant="ghost" 
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          )}
           
           <Button
             variant="ghost"

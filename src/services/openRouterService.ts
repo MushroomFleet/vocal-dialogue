@@ -16,13 +16,41 @@ export interface AIModel {
 class OpenRouterService {
   private apiKey: string | null = null;
   private baseURL = 'https://openrouter.ai/api/v1';
+  private readonly STORAGE_KEY = 'openrouter_api_key';
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_OPENROUTER_API_KEY || null;
+    // Check localStorage first, then environment variables
+    this.apiKey = this.getStoredApiKey() || import.meta.env.VITE_OPENROUTER_API_KEY || null;
+  }
+
+  private getStoredApiKey(): string | null {
+    try {
+      return localStorage.getItem(this.STORAGE_KEY);
+    } catch {
+      return null;
+    }
   }
 
   get hasApiKey(): boolean {
     return !!this.apiKey;
+  }
+
+  setApiKey(key: string): void {
+    this.apiKey = key;
+    try {
+      localStorage.setItem(this.STORAGE_KEY, key);
+    } catch (error) {
+      console.warn('Failed to store API key in localStorage:', error);
+    }
+  }
+
+  clearApiKey(): void {
+    this.apiKey = null;
+    try {
+      localStorage.removeItem(this.STORAGE_KEY);
+    } catch (error) {
+      console.warn('Failed to remove API key from localStorage:', error);
+    }
   }
 
   getPopularModels(): AIModel[] {

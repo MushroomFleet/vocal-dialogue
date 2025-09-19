@@ -19,6 +19,7 @@ interface ConversationAIHook {
   sendMessage: (content: string) => Promise<void>;
   clearConversation: () => void;
   setSelectedModel: (model: string) => void;
+  refreshApiKeyStatus: () => void;
   error: string | null;
 }
 
@@ -91,6 +92,11 @@ export const useConversationAI = (): ConversationAIHook => {
     setError(null);
   }, []);
 
+  const refreshApiKeyStatus = useCallback(() => {
+    // Force re-render by updating hasApiKey state
+    setMessages(prev => [...prev]);
+  }, []);
+
   return {
     messages,
     isGenerating,
@@ -101,6 +107,7 @@ export const useConversationAI = (): ConversationAIHook => {
     sendMessage,
     clearConversation,
     setSelectedModel,
+    refreshApiKeyStatus,
     error
   };
 };

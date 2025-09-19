@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Trash2, Mic, MicOff, Settings, Square, Loader2, Volume2 } from 'lucide-react';
+import { Trash2, Mic, MicOff, Settings, Square, Loader2, Volume2, FileText } from 'lucide-react';
 import { ModelSelector } from './ModelSelector';
 import { AIModel } from '@/services/openRouterService';
 import { cn } from '@/lib/utils';
@@ -19,19 +19,23 @@ interface ChatHeaderProps {
   onStartListening: () => void;
   onStopListening: () => void;
   isProcessing: boolean;
+  onExportChat: () => void;
+  hasMessages: boolean;
 }
 
 export const ChatHeader = ({ 
   onClearChat, 
-  isSupported, 
-  selectedModel, 
-  availableModels, 
-  onModelChange, 
+  isSupported,
+  selectedModel,
+  availableModels,
+  onModelChange,
   hasApiKey,
   isListening,
   onStartListening,
   onStopListening,
-  isProcessing
+  isProcessing,
+  onExportChat,
+  hasMessages
 }: ChatHeaderProps) => {
   const [isApiKeySettingsOpen, setIsApiKeySettingsOpen] = useState(false);
   const [isTTSSettingsOpen, setIsTTSSettingsOpen] = useState(false);
@@ -122,6 +126,16 @@ export const ChatHeader = ({
             title="API Settings"
           >
             <Settings className="h-4 w-4" />
+          </Button>
+          
+          <Button 
+            onClick={onExportChat}
+            disabled={!hasMessages}
+            variant="outline" 
+            size="sm"
+            title="Export Chat"
+          >
+            <FileText className="h-4 w-4" />
           </Button>
           
           <Button 

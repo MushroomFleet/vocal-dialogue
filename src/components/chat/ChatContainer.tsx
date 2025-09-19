@@ -58,6 +58,28 @@ export const ChatContainer = () => {
     }
   }, [messages, isGenerating, speak]);
 
+  const exportChat = () => {
+    if (messages.length === 0) return;
+
+    const chatText = messages
+      .map(message => {
+        const prefix = message.role === 'user' ? 'H:' : 'assistant:';
+        return `${prefix} ${message.content}`;
+      })
+      .join('\n\n');
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `CC-${timestamp}.txt`;
+
+    const blob = new Blob([chatText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gradient-subtle">
       <ChatHeader 
@@ -71,6 +93,8 @@ export const ChatContainer = () => {
         onStartListening={startListening}
         onStopListening={stopListening}
         isProcessing={isGenerating}
+        onExportChat={exportChat}
+        hasMessages={messages.length > 0}
       />
 
       <main className="flex-1 overflow-hidden relative">

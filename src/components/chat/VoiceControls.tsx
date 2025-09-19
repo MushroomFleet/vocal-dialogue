@@ -38,48 +38,21 @@ export const VoiceControls = ({
   }
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col items-center gap-4">
-        <div className="relative">
-          <Button
-            onClick={handleToggleListening}
-            disabled={isProcessing}
-            size="lg"
-            className={cn(
-              "w-16 h-16 rounded-full transition-all duration-300",
-              isListening
-                ? "bg-destructive hover:bg-destructive/90 shadow-glow animate-pulse-glow"
-                : "bg-gradient-primary hover:opacity-90 shadow-conversation",
-              isProcessing && "opacity-50 cursor-not-allowed"
-            )}
-          >
-            {isProcessing ? (
-              <Loader2 className="w-6 h-6 animate-spin text-white" />
-            ) : isListening ? (
-              <Square className="w-6 h-6 text-white" />
-            ) : (
-              <Mic className="w-6 h-6 text-white" />
-            )}
-          </Button>
-          
-          {isListening && (
-            <div className="absolute inset-0 rounded-full border-2 border-destructive animate-ping" />
-          )}
-        </div>
-
+    <div className="p-4">
+      <div className="flex flex-col items-center gap-3">
         <div className="text-center">
           <p className="text-sm font-medium text-foreground">
             {isProcessing
-              ? "Processing..."
+              ? "Processing your message..."
               : isListening
-              ? "Listening... Speak now"
-              : "Tap to start speaking"
+              ? "Listening... (Auto-stops after 2s silence)"
+              : "Use the 'Talk' button in the header to start"
             }
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             {isListening
-              ? "Tap the button or stop speaking to send"
-              : "Voice-driven conversations made simple"
+              ? "AI will respond automatically when you finish speaking"
+              : "Voice conversations powered by AI"
             }
           </p>
         </div>
@@ -89,7 +62,7 @@ export const VoiceControls = ({
             {[...Array(5)].map((_, i) => (
               <div
                 key={i}
-                className="w-1 h-8 bg-voice-active rounded-full animate-voice-wave"
+                className="w-1 h-6 bg-voice-active rounded-full animate-voice-wave"
                 style={{
                   animationDelay: `${i * 0.1}s`,
                 }}

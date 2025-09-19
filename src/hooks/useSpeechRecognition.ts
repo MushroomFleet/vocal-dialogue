@@ -8,13 +8,17 @@ interface SpeechRecognitionHook {
   stopListening: () => void;
   resetTranscript: () => void;
   error: string | null;
+  hasFinished: boolean;
 }
 
 export const useSpeechRecognition = (): SpeechRecognitionHook => {
   const [transcript, setTranscript] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasFinished, setHasFinished] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSpeechTimeRef = useRef<number>(0);
 
   const isSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
 
@@ -49,7 +53,26 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
         }
       }
 
-      setTranscript(finalTranscript + interimTranscript);
+      const fullTranscript = finalTranscript + interimTranscript;
+      setTranscript(fullTranscript);
+      
+      // Update last speech time and reset silence timer
+      if (fullTranscript.trim()) {
+        lastSpeechTimeRef.current = Date.now();
+        
+        // Clear existing silence timer
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+        }
+        
+        // Set new silence timer (2 seconds of silence triggers stop)
+        silenceTimerRef.current = setTimeout(() => {
+          if (recognitionRef.current && isListening && fullTranscript.trim()) {
+            setHasFinished(true);
+            recognitionRef.current.stop();
+          }
+        }, 2000);
+      }
     };
 
     recognition.onerror = (event) => {
@@ -59,6 +82,11 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
 
     recognition.onend = () => {
       setIsListening(false);
+      // Clear any remaining silence timer
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
     };
 
     recognitionRef.current = recognition;
@@ -67,6 +95,9 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
       }
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+      }
     };
   }, [isSupported]);
 
@@ -74,18 +105,26 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     if (recognitionRef.current && !isListening) {
       setTranscript('');
       setError(null);
+      setHasFinished(false);
+      lastSpeechTimeRef.current = 0;
       recognitionRef.current.start();
     }
   }, [isListening]);
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current && isListening) {
+      setHasFinished(true);
       recognitionRef.current.stop();
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
     }
   }, [isListening]);
 
   const resetTranscript = useCallback(() => {
     setTranscript('');
+    setHasFinished(false);
   }, []);
 
   return {
@@ -95,7 +134,8 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     startListening,
     stopListening,
     resetTranscript,
-    error
+    error,
+    hasFinished
   };
 };
 

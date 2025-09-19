@@ -31,16 +31,17 @@ export const ChatContainer = () => {
     startListening,
     stopListening,
     resetTranscript,
+    hasFinished,
     error: speechError
   } = useSpeechRecognition();
 
-  // Auto-send transcript when speech ends
+  // Auto-send transcript when speech finishes with silence detection
   useEffect(() => {
-    if (transcript && !isListening && transcript.trim().length > 0) {
+    if (hasFinished && transcript && transcript.trim().length > 0) {
       sendMessage(transcript);
       resetTranscript();
     }
-  }, [transcript, isListening, sendMessage, resetTranscript]);
+  }, [hasFinished, transcript, sendMessage, resetTranscript]);
 
   return (
     <div className="flex flex-col h-screen bg-gradient-subtle">
@@ -52,6 +53,10 @@ export const ChatContainer = () => {
         onModelChange={setSelectedModel}
         hasApiKey={hasApiKey}
         onOpenApiKeySettings={() => setIsApiKeySettingsOpen(true)}
+        isListening={isListening}
+        onStartListening={startListening}
+        onStopListening={stopListening}
+        isProcessing={isGenerating}
       />
 
       <main className="flex-1 overflow-hidden relative">

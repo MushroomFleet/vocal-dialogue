@@ -53,50 +53,52 @@ export const ModelSelector = ({ selectedModel, availableModels, onModelChange, h
         </Button>
       </DropdownMenuTrigger>
       
-      <DropdownMenuContent align="end" className="w-80">
-        <DropdownMenuLabel>AI Models</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto bg-popover border shadow-md z-50">
+        <DropdownMenuLabel className="text-sm">AI Models</DropdownMenuLabel>
         <DropdownMenuSeparator />
         
-        {availableModels.map((model) => (
-          <DropdownMenuItem
-            key={model.id}
-            onClick={() => onModelChange(model.id)}
-            className="flex items-start gap-3 p-3 cursor-pointer"
-          >
-            <div className="flex items-center justify-center w-5 h-5 mt-0.5">
-              {selectedModel === model.id && <Check className="w-4 h-4" />}
-            </div>
-            
-            <div className="flex-1 space-y-1">
-              <div className="flex items-center justify-between w-full">
-                <span className="font-medium">{model.name}</span>
-                <div className="flex gap-1 text-xs text-muted-foreground">
-                  <span>{model.pricing.prompt}/1M</span>
-                  <span>•</span>
-                  <span>{model.pricing.completion}/1M</span>
-                </div>
+        <div className="max-h-80 overflow-y-auto">
+          {availableModels.map((model) => (
+            <DropdownMenuItem
+              key={model.id}
+              onClick={() => onModelChange(model.id)}
+              className="flex items-start gap-2 p-2 cursor-pointer hover:bg-accent"
+            >
+              <div className="flex items-center justify-center w-4 h-4 mt-0.5">
+                {selectedModel === model.id && <Check className="w-3 h-3" />}
               </div>
-              {model.description && (
-                <div className="text-xs text-muted-foreground line-clamp-2">
-                  {model.description}
-                </div>
-              )}
-              <div className="flex gap-2 text-xs text-muted-foreground">
-                <span>{model.context_length?.toLocaleString()} ctx</span>
-                {model.architecture?.modality && (
-                  <>
+              
+              <div className="flex-1 space-y-1">
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-sm font-medium">{model.name}</span>
+                  <div className="flex gap-1 text-xs text-muted-foreground">
+                    <span>{model.pricing.prompt}</span>
                     <span>•</span>
-                    <span>{model.architecture.modality}</span>
-                  </>
+                    <span>{model.pricing.completion}</span>
+                  </div>
+                </div>
+                {model.description && (
+                  <div className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                    {model.description}
+                  </div>
                 )}
+                <div className="flex gap-2 text-xs text-muted-foreground">
+                  <span>{model.context_length?.toLocaleString()} ctx</span>
+                  {model.architecture?.modality && (
+                    <>
+                      <span>•</span>
+                      <span>{model.architecture.modality}</span>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </DropdownMenuItem>
-        ))}
+            </DropdownMenuItem>
+          ))}
+        </div>
         
         <DropdownMenuSeparator />
-        <div className="p-2 text-xs text-muted-foreground">
-          Pricing shown per 1M input tokens
+        <div className="p-2 text-xs text-muted-foreground bg-muted/30">
+          Pricing per 1M tokens • Scroll to see more models
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

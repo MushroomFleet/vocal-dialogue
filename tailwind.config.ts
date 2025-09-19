@@ -47,6 +47,11 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        voice: {
+          active: "hsl(var(--voice-active))",
+          inactive: "hsl(var(--voice-inactive))",
+          pulse: "hsl(var(--voice-pulse))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -62,6 +67,19 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      backgroundImage: {
+        'gradient-primary': 'var(--gradient-primary)',
+        'gradient-voice': 'var(--gradient-voice)',
+        'gradient-subtle': 'var(--gradient-subtle)',
+      },
+      boxShadow: {
+        glow: 'var(--shadow-glow)',
+        conversation: 'var(--shadow-conversation)',
+      },
+      transitionTimingFunction: {
+        smooth: 'var(--transition-smooth)',
+        bounce: 'var(--transition-bounce)',
       },
       keyframes: {
         "accordion-down": {
@@ -80,10 +98,31 @@ export default {
             height: "0",
           },
         },
+        "pulse-glow": {
+          "0%, 100%": { 
+            boxShadow: "0 0 20px hsl(var(--voice-pulse) / 0.3)",
+            transform: "scale(1)" 
+          },
+          "50%": { 
+            boxShadow: "0 0 30px hsl(var(--voice-pulse) / 0.6)",
+            transform: "scale(1.05)" 
+          },
+        },
+        "voice-wave": {
+          "0%, 100%": { transform: "scaleY(1)" },
+          "50%": { transform: "scaleY(1.5)" },
+        },
+        "fade-in": {
+          "0%": { opacity: "0", transform: "translateY(10px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "voice-wave": "voice-wave 1.5s ease-in-out infinite",
+        "fade-in": "fade-in 0.3s ease-out",
       },
     },
   },

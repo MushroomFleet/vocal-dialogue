@@ -27,9 +27,14 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const microphoneRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const volumeHistoryRef = useRef<number[]>([]);
   const calibrationTimerRef = useRef<NodeJS.Timeout | null>(null);
   const volumeMonitorRef = useRef<number | null>(null);
+  const isVoiceActiveRef = useRef(false);
+  const aboveCountRef = useRef(0);
+  const belowCountRef = useRef(0);
+  const smoothedRmsRef = useRef(0);
 
   const isSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
 
@@ -37,75 +42,111 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
   const initializeAudioMonitoring = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
       
       audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
       analyserRef.current = audioContextRef.current.createAnalyser();
       microphoneRef.current = audioContextRef.current.createMediaStreamSource(stream);
       
-      analyserRef.current.fftSize = 256;
-      const bufferLength = analyserRef.current.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
+      analyserRef.current.fftSize = 1024;
+      const bufferLength = analyserRef.current.fftSize;
+      const timeDomain = new Uint8Array(bufferLength);
       
       microphoneRef.current.connect(analyserRef.current);
       
-      // Start calibration period (3 seconds)
+      // Calibration period (1.5s) to measure ambient RMS
       setIsCalibrating(true);
       volumeHistoryRef.current = [];
-      
+      isVoiceActiveRef.current = false;
+      aboveCountRef.current = 0;
+      belowCountRef.current = 0;
+      smoothedRmsRef.current = 0;
+      lastSpeechTimeRef.current = Date.now();
+
+      const SMOOTHING = 0.15; // exponential smoothing factor
+      const MIN_SILENCE_MS = 1200; // required silence duration
+      const ACTIVATE_FRAMES = 6; // ~100ms
+      const DEACTIVATE_FRAMES = 18; // ~300ms
+
       const monitorVolume = () => {
         if (!analyserRef.current) return;
-        
-        analyserRef.current.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
-        
+
+        analyserRef.current.getByteTimeDomainData(timeDomain);
+        // Compute RMS from time domain data (0..1)
+        let sumSquares = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const v = (timeDomain[i] - 128) / 128; // center at 0
+          sumSquares += v * v;
+        }
+        const rms = Math.sqrt(sumSquares / bufferLength);
+
+        // Smooth RMS
+        smoothedRmsRef.current = SMOOTHING * rms + (1 - SMOOTHING) * smoothedRmsRef.current;
+
         if (isCalibrating) {
-          volumeHistoryRef.current.push(average);
+          volumeHistoryRef.current.push(smoothedRmsRef.current);
         } else {
-          // Check if current volume is significantly above ambient level
-          const threshold = ambientLevel + 15; // 15 units above ambient
-          const isSpeaking = average > threshold;
-          
-          console.log(`Volume: ${average.toFixed(2)}, Threshold: ${threshold.toFixed(2)}, Speaking: ${isSpeaking}, Transcript: "${transcript.trim()}"`);
-          
-          if (isSpeaking && transcript.trim()) {
+          const startThresh = (ambientLevel || 0.005) + 0.03; // voice start
+          const stopThresh = (ambientLevel || 0.005) + 0.015; // voice stop (hysteresis)
+
+          if (smoothedRmsRef.current > startThresh) {
+            aboveCountRef.current++;
+            belowCountRef.current = 0;
+          } else if (smoothedRmsRef.current < stopThresh) {
+            belowCountRef.current++;
+          }
+
+          if (!isVoiceActiveRef.current && aboveCountRef.current >= ACTIVATE_FRAMES) {
+            isVoiceActiveRef.current = true;
+            aboveCountRef.current = 0;
+            belowCountRef.current = 0;
             lastSpeechTimeRef.current = Date.now();
-            
-            // Clear existing silence timer
             if (silenceTimerRef.current) {
               clearTimeout(silenceTimerRef.current);
-              console.log('Cleared existing silence timer');
+              silenceTimerRef.current = null;
             }
-          } else if (!isSpeaking && transcript.trim() && Date.now() - lastSpeechTimeRef.current > 1000) {
-            // Start silence timer if we have transcript and no speech for 1 second
-            if (!silenceTimerRef.current) {
-              console.log('Starting silence timer...');
+            // console.debug('Voice activity detected');
+          }
+
+          if (isVoiceActiveRef.current && belowCountRef.current >= DEACTIVATE_FRAMES) {
+            isVoiceActiveRef.current = false;
+            belowCountRef.current = 0;
+            // Start silence timer only if we have transcript content
+            if (!silenceTimerRef.current && transcript.trim()) {
               silenceTimerRef.current = setTimeout(() => {
-                console.log('Silence detected - stopping recognition');
                 if (recognitionRef.current && isListening && transcript.trim()) {
                   setHasFinished(true);
                   recognitionRef.current.stop();
                 }
                 silenceTimerRef.current = null;
-              }, 1500); // 1.5 seconds of silence after detecting no speech
+              }, MIN_SILENCE_MS);
+            }
+          }
+
+          // Fallback: stop if no voice activity for prolonged period but transcript exists
+          if (!isVoiceActiveRef.current && transcript.trim() && Date.now() - lastSpeechTimeRef.current > MIN_SILENCE_MS * 2) {
+            if (recognitionRef.current && isListening) {
+              setHasFinished(true);
+              recognitionRef.current.stop();
             }
           }
         }
-        
+
         volumeMonitorRef.current = requestAnimationFrame(monitorVolume);
       };
-      
+
       monitorVolume();
-      
-      // Complete calibration after 3 seconds
+
+      // Complete calibration after 1.5 seconds
       calibrationTimerRef.current = setTimeout(() => {
         if (volumeHistoryRef.current.length > 0) {
-          const avgAmbient = volumeHistoryRef.current.reduce((sum, val) => sum + val, 0) / volumeHistoryRef.current.length;
+          const avgAmbient = volumeHistoryRef.current.reduce((s, v) => s + v, 0) / volumeHistoryRef.current.length;
           setAmbientLevel(avgAmbient);
-          console.log(`Ambient noise level calibrated: ${avgAmbient.toFixed(2)}, Threshold will be: ${(avgAmbient + 15).toFixed(2)}`);
+          // console.debug(`Ambient RMS calibrated: ${avgAmbient.toFixed(4)}`);
         }
         setIsCalibrating(false);
-      }, 3000);
-      
+      }, 1500);
+
     } catch (err) {
       console.error('Failed to initialize audio monitoring:', err);
       setError('Microphone access denied');
@@ -126,6 +167,11 @@ export const useSpeechRecognition = (): SpeechRecognitionHook => {
     if (microphoneRef.current) {
       microphoneRef.current.disconnect();
       microphoneRef.current = null;
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
     }
     
     if (audioContextRef.current) {

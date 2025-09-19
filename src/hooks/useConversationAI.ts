@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { openRouterService, type AIModel } from '../services/openRouterService';
 
 export interface Message {
@@ -30,8 +30,17 @@ export const useConversationAI = (): ConversationAIHook => {
   const [selectedModel, setSelectedModel] = useState('openai/gpt-4o');
   const [error, setError] = useState<string | null>(null);
 
-  const availableModels = openRouterService.getPopularModels();
+  const [availableModels, setAvailableModels] = useState<AIModel[]>([]);
   const hasApiKey = openRouterService.hasApiKey;
+
+  // Load models on component mount
+  useEffect(() => {
+    const loadModels = async () => {
+      const models = await openRouterService.getModels();
+      setAvailableModels(models);
+    };
+    loadModels();
+  }, []);
 
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isGenerating) return;

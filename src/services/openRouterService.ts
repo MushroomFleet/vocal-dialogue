@@ -6,10 +6,24 @@ interface ChatMessage {
 export interface AIModel {
   id: string;
   name: string;
-  description: string;
+  description?: string;
+  context_length: number;
+  architecture: {
+    modality: string;
+    tokenizer: string;
+    instruct_type?: string;
+  };
   pricing: {
     prompt: string;
     completion: string;
+  };
+  top_provider: {
+    max_completion_tokens?: number;
+    is_moderated: boolean;
+  };
+  per_request_limits?: {
+    prompt_tokens: string;
+    completion_tokens: string;
   };
 }
 
@@ -17,6 +31,9 @@ class OpenRouterService {
   private apiKey: string | null = null;
   private baseURL = 'https://openrouter.ai/api/v1';
   private readonly STORAGE_KEY = 'openrouter_api_key';
+  private modelsCache: AIModel[] | null = null;
+  private modelsCacheExpiry: number = 0;
+  private readonly CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
   constructor() {
     // Check localStorage first, then environment variables
@@ -53,27 +70,113 @@ class OpenRouterService {
     }
   }
 
+  async getAllModels(): Promise<AIModel[]> {
+    // Return cached models if still valid
+    if (this.modelsCache && Date.now() < this.modelsCacheExpiry) {
+      return this.modelsCache;
+    }
+
+    try {
+      const response = await fetch(`${this.baseURL}/models`, {
+        headers: {
+          'HTTP-Referer': window.location.origin,
+          'X-Title': 'Careless-Convo',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      // Transform the API response to match our interface
+      const models: AIModel[] = data.data.map((model: any) => ({
+        id: model.id,
+        name: model.name,
+        description: model.description,
+        context_length: model.context_length,
+        architecture: model.architecture,
+        pricing: {
+          prompt: `$${(parseFloat(model.pricing.prompt) * 1000000).toFixed(2)}`,
+          completion: `$${(parseFloat(model.pricing.completion) * 1000000).toFixed(2)}`
+        },
+        top_provider: model.top_provider,
+        per_request_limits: model.per_request_limits
+      }));
+
+      // Cache the results
+      this.modelsCache = models;
+      this.modelsCacheExpiry = Date.now() + this.CACHE_DURATION;
+
+      return models;
+    } catch (error) {
+      console.error('Failed to fetch models from OpenRouter:', error);
+      // Fallback to popular models if API fails
+      return this.getPopularModels();
+    }
+  }
+
   getPopularModels(): AIModel[] {
     return [
       {
         id: 'openai/gpt-4o',
         name: 'GPT-4o',
         description: 'Latest GPT-4 with vision capabilities',
-        pricing: { prompt: '$5.00', completion: '$15.00' }
+        context_length: 128000,
+        architecture: {
+          modality: 'text+vision',
+          tokenizer: 'cl100k_base',
+          instruct_type: 'none'
+        },
+        pricing: { prompt: '$5.00', completion: '$15.00' },
+        top_provider: {
+          max_completion_tokens: 4096,
+          is_moderated: true
+        }
       },
       {
         id: 'anthropic/claude-3.5-sonnet',
         name: 'Claude 3.5 Sonnet',
         description: 'Advanced reasoning and analysis',
-        pricing: { prompt: '$3.00', completion: '$15.00' }
+        context_length: 200000,
+        architecture: {
+          modality: 'text+vision',
+          tokenizer: 'claude',
+          instruct_type: 'none'
+        },
+        pricing: { prompt: '$3.00', completion: '$15.00' },
+        top_provider: {
+          max_completion_tokens: 4096,
+          is_moderated: true
+        }
       },
       {
         id: 'openai/gpt-3.5-turbo',
         name: 'GPT-3.5 Turbo',
         description: 'Fast and cost-effective',
-        pricing: { prompt: '$0.50', completion: '$1.50' }
+        context_length: 16385,
+        architecture: {
+          modality: 'text',
+          tokenizer: 'cl100k_base',
+          instruct_type: 'none'
+        },
+        pricing: { prompt: '$0.50', completion: '$1.50' },
+        top_provider: {
+          max_completion_tokens: 4096,
+          is_moderated: true
+        }
       }
     ];
+  }
+
+  async getModels(): Promise<AIModel[]> {
+    try {
+      return await this.getAllModels();
+    } catch (error) {
+      console.error('Error fetching models:', error);
+      return this.getPopularModels();
+    }
   }
 
   async generateStreamingResponse(

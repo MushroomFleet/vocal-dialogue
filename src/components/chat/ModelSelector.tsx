@@ -68,15 +68,28 @@ export const ModelSelector = ({ selectedModel, availableModels, onModelChange, h
             </div>
             
             <div className="flex-1 space-y-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center justify-between w-full">
                 <span className="font-medium">{model.name}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {model.pricing.prompt}/1M tokens
-                </Badge>
+                <div className="flex gap-1 text-xs text-muted-foreground">
+                  <span>{model.pricing.prompt}/1M</span>
+                  <span>•</span>
+                  <span>{model.pricing.completion}/1M</span>
+                </div>
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {model.description}
-              </p>
+              {model.description && (
+                <div className="text-xs text-muted-foreground line-clamp-2">
+                  {model.description}
+                </div>
+              )}
+              <div className="flex gap-2 text-xs text-muted-foreground">
+                <span>{model.context_length?.toLocaleString()} ctx</span>
+                {model.architecture?.modality && (
+                  <>
+                    <span>•</span>
+                    <span>{model.architecture.modality}</span>
+                  </>
+                )}
+              </div>
             </div>
           </DropdownMenuItem>
         ))}

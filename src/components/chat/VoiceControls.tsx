@@ -45,7 +45,7 @@ export const VoiceControls = ({
             {isProcessing
               ? "Processing your message..."
               : isListening
-              ? "Listening... (Auto-stops after 2s silence)"
+              ? "Click to send speech to convo"
               : "Use the 'Talk' button in the header to start"
             }
           </p>

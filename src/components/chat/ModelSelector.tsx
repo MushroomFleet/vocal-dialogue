@@ -95,11 +95,6 @@ export const ModelSelector = ({ selectedModel, availableModels, onModelChange, h
             </DropdownMenuItem>
           ))}
         </div>
-        
-        <DropdownMenuSeparator />
-        <div className="p-2 text-xs text-muted-foreground bg-muted/30">
-          Pricing per 1M tokens • Scroll to see more models
-        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

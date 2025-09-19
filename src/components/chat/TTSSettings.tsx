@@ -33,10 +33,10 @@ export const TTSSettings = ({ open, onOpenChange }: TTSSettingsProps) => {
   const [loadingVoices, setLoadingVoices] = useState(false);
 
   useEffect(() => {
-    if (settings.elevenLabsApiKey && elevenLabsVoices.length === 0) {
+    if (settings.elevenLabsApiKey && settings.provider === 'elevenlabs') {
       handleLoadVoices();
     }
-  }, [settings.elevenLabsApiKey]);
+  }, [settings.elevenLabsApiKey, settings.provider]);
 
   const handleLoadVoices = async () => {
     if (!settings.elevenLabsApiKey) {
@@ -52,14 +52,14 @@ export const TTSSettings = ({ open, onOpenChange }: TTSSettingsProps) => {
     try {
       await loadElevenLabsVoices();
       toast({
-        title: "Voices Loaded",
-        description: "ElevenLabs voices have been loaded successfully.",
+        title: "Voices Updated",
+        description: "Popular voices are available. Custom voices loaded if your API key has permissions.",
       });
     } catch (error) {
       toast({
-        title: "Error Loading Voices",
-        description: "Failed to load ElevenLabs voices. Check your API key.",
-        variant: "destructive"
+        title: "Using Popular Voices",
+        description: "Popular ElevenLabs voices are available. For custom voices, ensure your API key has 'voices_read' permission.",
+        variant: "default"
       });
     }
     setLoadingVoices(false);
@@ -177,12 +177,12 @@ export const TTSSettings = ({ open, onOpenChange }: TTSSettingsProps) => {
                       {loadingVoices ? (
                         <RefreshCw className="w-4 h-4 animate-spin" />
                       ) : (
-                        <Key className="w-4 h-4" />
+                        <RefreshCw className="w-4 h-4" />
                       )}
                     </Button>
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    Get your API key from{' '}
+                    Popular voices are always available. For custom voices, get an API key with 'voices_read' permission from{' '}
                     <a 
                       href="https://elevenlabs.io/app/speech-synthesis" 
                       target="_blank" 
@@ -223,7 +223,6 @@ export const TTSSettings = ({ open, onOpenChange }: TTSSettingsProps) => {
                   <Select
                     value={settings.elevenLabsVoiceId}
                     onValueChange={(voiceId) => updateSettings({ elevenLabsVoiceId: voiceId })}
-                    disabled={elevenLabsVoices.length === 0}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select an ElevenLabs voice" />

@@ -9,6 +9,30 @@ interface ElevenLabsVoice {
   category: string;
 }
 
+// Popular ElevenLabs voices as fallback
+const POPULAR_ELEVENLABS_VOICES: ElevenLabsVoice[] = [
+  { voice_id: '9BWtsMINqrJLrRacOk9x', name: 'Aria', category: 'premade' },
+  { voice_id: 'CwhRBWXzGAHq8TQ4Fs17', name: 'Roger', category: 'premade' },
+  { voice_id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', category: 'premade' },
+  { voice_id: 'FGY2WhTYpPnrIDTdsKH5', name: 'Laura', category: 'premade' },
+  { voice_id: 'IKne3meq5aSn9XLyUdCD', name: 'Charlie', category: 'premade' },
+  { voice_id: 'JBFqnCBsd6RMkjVDRZzb', name: 'George', category: 'premade' },
+  { voice_id: 'N2lVS1w4EtoT3dr4eOWO', name: 'Callum', category: 'premade' },
+  { voice_id: 'SAz9YHcvj6GT2YYXdXww', name: 'River', category: 'premade' },
+  { voice_id: 'TX3LPaxmHKxFdv7VOQHJ', name: 'Liam', category: 'premade' },
+  { voice_id: 'XB0fDUnXU5powFXDhCwa', name: 'Charlotte', category: 'premade' },
+  { voice_id: 'Xb7hH8MSUJpSbSDYk0k2', name: 'Alice', category: 'premade' },
+  { voice_id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', category: 'premade' },
+  { voice_id: 'bIHbv24MWmeRgasZH58o', name: 'Will', category: 'premade' },
+  { voice_id: 'cgSgspJ2msm6clMCkdW9', name: 'Jessica', category: 'premade' },
+  { voice_id: 'cjVigY5qzO86Huf0OWal', name: 'Eric', category: 'premade' },
+  { voice_id: 'iP95p4xoKVk53GoZ742B', name: 'Chris', category: 'premade' },
+  { voice_id: 'nPczCjzI2devNBz1zQrb', name: 'Brian', category: 'premade' },
+  { voice_id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', category: 'premade' },
+  { voice_id: 'pFZP5JQG7iQjIQuC4Bku', name: 'Lily', category: 'premade' },
+  { voice_id: 'pqHfZKP75CvOlQylNhV4', name: 'Bill', category: 'premade' }
+];
+
 interface TTSSettings {
   enabled: boolean;
   provider: TTSProvider;
@@ -48,7 +72,7 @@ const STORAGE_KEY = 'tts_settings';
 export const useTextToSpeech = (): TextToSpeechHook => {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [elevenLabsVoices, setElevenLabsVoices] = useState<ElevenLabsVoice[]>([]);
+  const [elevenLabsVoices, setElevenLabsVoices] = useState<ElevenLabsVoice[]>(POPULAR_ELEVENLABS_VOICES);
   const [settings, setSettings] = useState<TTSSettings>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -112,7 +136,20 @@ export const useTextToSpeech = (): TextToSpeechHook => {
       
       if (response.ok) {
         const data = await response.json();
-        setElevenLabsVoices(data.voices || []);
+        // Merge custom voices with popular ones, removing duplicates
+        const customVoices = data.voices || [];
+        const allVoices = [...POPULAR_ELEVENLABS_VOICES];
+        
+        customVoices.forEach((voice: ElevenLabsVoice) => {
+          if (!allVoices.find(v => v.voice_id === voice.voice_id)) {
+            allVoices.push(voice);
+          }
+        });
+        
+        setElevenLabsVoices(allVoices);
+      } else if (response.status === 401) {
+        // API key doesn't have voices_read permission, use popular voices
+        console.warn('API key lacks voices_read permission, using popular voices');
       }
     } catch (error) {
       console.error('Failed to load ElevenLabs voices:', error);

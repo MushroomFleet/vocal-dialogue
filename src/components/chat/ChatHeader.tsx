@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { ApiKeySettings } from './ApiKeySettings';
 import { TTSSettings } from './TTSSettings';
 import { ThemeToggle } from '../ThemeToggle';
+import { EcosystemNavigationMenu } from '../NavigationMenu';
 
 interface ChatHeaderProps {
   onClearChat: () => void;
@@ -50,13 +51,26 @@ export const ChatHeader = ({
   };
 
   return (
-    <header className="border-b bg-card/50 backdrop-blur-sm p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <header className="border-b bg-card/50 backdrop-blur-sm">
+      {/* Top Navigation Row */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
+        <a 
+          href="https://www.scuffedepoch.com" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
           <h1 className="text-xl font-semibold bg-gradient-primary bg-clip-text text-transparent">
             Careless-Convo
           </h1>
-          
+        </a>
+        
+        <EcosystemNavigationMenu />
+      </div>
+
+      {/* Chat Controls Row */}
+      <div className="flex items-center justify-between px-4 py-3">
+        <div className="flex items-center gap-3">
           <Badge 
             variant={isSupported ? "default" : "destructive"} 
             className="text-xs"
